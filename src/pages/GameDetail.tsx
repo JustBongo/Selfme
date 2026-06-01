@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthProvider';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, onSnapshot, addDoc, orderBy, serverTimestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, orderBy, serverTimestamp, deleteDoc, doc, where } from 'firebase/firestore';
 import { Comment, Reaction, ESPNGame } from '../types';
 import { ArrowLeft, Send, Sparkles, Filter } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -55,14 +55,15 @@ export function GameDetail() {
     if (!gameId) return;
     
     const commentsRef = collection(db, 'games', gameId, 'comments');
-    const qComments = query(commentsRef, orderBy('createdAt', sortOrder));
+    const qComments = query(commentsRef, where('gameId', '==', gameId), orderBy('createdAt', sortOrder));
     
     const unsubC = onSnapshot(qComments, (snap) => {
       setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Comment)));
     }, (error) => handleFirestoreError(error, OperationType.GET, `games/${gameId}/comments`));
 
     const reactionsRef = collection(db, 'games', gameId, 'reactions');
-    const unsubR = onSnapshot(reactionsRef, (snap) => {
+    const qReactions = query(reactionsRef, where('gameId', '==', gameId));
+    const unsubR = onSnapshot(qReactions, (snap) => {
       setReactions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Reaction)));
     }, (error) => handleFirestoreError(error, OperationType.GET, `games/${gameId}/reactions`));
 
