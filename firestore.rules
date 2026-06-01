@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'email', 'favoriteTeams', 'favoritePlayers', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.displayName is string && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() <= 200 &&
+             data.favoriteTeams is list && data.favoriteTeams.size() <= 100 &&
+             data.favoritePlayers is list && data.favoritePlayers.size() <= 100 &&
+             (data.favoriteTeams.size() == 0 || data.favoriteTeams[0] is string) &&
+             (data.favoritePlayers.size() == 0 || data.favoritePlayers[0] is string) &&
+             data.createdAt is number;
+    }
+    
+    function isValidComment(data) {
+      return data.keys().hasAll(['userId', 'userDisplayName', 'gameId', 'text', 'createdAt']) &&
+             data.keys().size() == 5 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.userDisplayName is string && data.userDisplayName.size() <= 100 &&
+             data.gameId is string && data.gameId.size() <= 128 &&
+             data.text is string && data.text.size() <= 1000 &&
+             data.createdAt is number;
+    }
+    
+    function isValidReaction(data) {
+      return data.keys().hasAll(['userId', 'gameId', 'emoji', 'createdAt']) &&
+             data.keys().size() == 4 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.gameId is string && data.gameId.size() <= 128 &&
+             data.emoji is string && data.emoji.size() <= 10 &&
+             data.createdAt is number;
+    }
+    
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false; // Users cannot list other users' profiles
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                       isValidUser(incoming());
+                       // Ideally request.time, but toMillis is needed for number type. In actual DB it's better to use timestamp type but number was requested. Let's use request.time safely if possible, but number timestamp works.
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId &&
+                       isValidUser(incoming()) && 
+                       incoming().createdAt == existing().createdAt;
+      allow delete: if false;
+    }
+    
+    match /games/{gameId}/comments/{commentId} {
+      allow get: if isSignedIn() && isValidId(gameId) && isValidId(commentId);
+      allow list: if isSignedIn() && isValidId(gameId) && resource.data.gameId == gameId;
+      allow create: if isSignedIn() && isValidId(gameId) && isValidId(commentId) &&
+                       isValidComment(incoming()) && incoming().gameId == gameId;
+      allow update: if false; // Comments cannot be edited
+      allow delete: if isSignedIn() && isValidId(gameId) && isValidId(commentId) &&
+                       existing().userId == request.auth.uid;
+    }
+    
+    match /games/{gameId}/reactions/{reactionId} {
+      allow get: if isSignedIn() && isValidId(gameId) && isValidId(reactionId);
+      allow list: if isSignedIn() && isValidId(gameId) && resource.data.gameId == gameId;
+      allow create: if isSignedIn() && isValidId(gameId) && isValidId(reactionId) &&
+                       isValidReaction(incoming()) && incoming().gameId == gameId;
+      allow update: if false; // Reactions cannot be edited
+      allow delete: if isSignedIn() && isValidId(gameId) && isValidId(reactionId) &&
+                       existing().userId == request.auth.uid;
+    }
+  }
+}

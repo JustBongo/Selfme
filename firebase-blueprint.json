@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile storing favorite teams and players",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "favoriteTeams": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "favoritePlayers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["displayName", "email", "favoriteTeams", "favoritePlayers", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comments on a specific game",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userDisplayName": { "type": "string" },
+        "gameId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["userId", "userDisplayName", "gameId", "text", "createdAt"]
+    },
+    "Reaction": {
+      "title": "Reaction",
+      "description": "User emoji reaction on a specific game",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "gameId": { "type": "string" },
+        "emoji": { "type": "string" },
+        "createdAt": { "type": "integer" }
+      },
+      "required": ["userId", "gameId", "emoji", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user profiles with their sports preferences"
+    },
+    "/games/{gameId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/Comment" },
+      "description": "Stores comments for a specific external ESPN game ID"
+    },
+    "/games/{gameId}/reactions/{reactionId}": {
+      "schema": { "$ref": "#/entities/Reaction" },
+      "description": "Stores emoji reactions for a specific external ESPN game ID"
+    }
+  }
+}
